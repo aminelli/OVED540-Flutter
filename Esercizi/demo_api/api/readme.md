@@ -1,5 +1,10 @@
 # Docs
 
+Documentazione on-line:
+
+- https://github.com/typicode/json-server
+
+
 ## Per inizializzare il progetto
 
 ```sh
