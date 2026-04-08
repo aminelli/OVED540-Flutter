@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/file_storage_service.dart';
 import '../models/note_model.dart';
@@ -27,8 +28,11 @@ class _FileStorageDemoScreenState extends State<FileStorageDemoScreen> {
   @override
   void initState() {
     super.initState();
-    _loadNotes();
-    _loadPaths();
+    // Non caricare dati su web (path_provider non supportato)
+    if (!kIsWeb) {
+      _loadNotes();
+      _loadPaths();
+    }
   }
 
   /// Carica tutte le note salvate
@@ -66,10 +70,13 @@ class _FileStorageDemoScreenState extends State<FileStorageDemoScreen> {
     final filenameController =
         TextEditingController(text: note?.filename ?? '');
     final contentController = TextEditingController(text: note?.content ?? '');
+    
+    // Cattura il context dello Scaffold prima di aprire il dialog
+    final scaffoldContext = context;
 
     return showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(isEditing ? 'Edit Note' : 'New Note'),
         content: SingleChildScrollView(
           child: Column(
@@ -99,7 +106,7 @@ class _FileStorageDemoScreenState extends State<FileStorageDemoScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
@@ -108,24 +115,39 @@ class _FileStorageDemoScreenState extends State<FileStorageDemoScreen> {
               final content = contentController.text.trim();
 
               if (filename.isEmpty || content.isEmpty) {
-                _showError('Filename and content cannot be empty');
+                // Mostra errore nello scaffold principale
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Filename and content cannot be empty'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
                 return;
               }
 
-              Navigator.pop(context);
-
+              // Salva il Navigator prima dell'operazione async
+              final navigator = Navigator.of(dialogContext);
+              
+              // Salva la nota
               final newNote = NoteModel(
                 filename: filename,
                 content: content,
               );
 
               final success = await _storageService.saveNote(newNote);
-              if (success) {
-                _showSuccess(
-                    isEditing ? 'Note updated!' : 'Note saved!');
-                _loadNotes();
-              } else {
-                _showError('Failed to save note');
+              
+              // Chiudi il dialog dopo aver salvato
+              navigator.pop();
+              
+              // Mostra il risultato (usando il context dello State)
+              if (mounted) {
+                if (success) {
+                  _showSuccess(
+                      isEditing ? 'Note updated!' : 'Note saved!');
+                  _loadNotes();
+                } else {
+                  _showError('Failed to save note');
+                }
               }
             },
             child: Text(isEditing ? 'Update' : 'Save'),
@@ -232,6 +254,61 @@ class _FileStorageDemoScreenState extends State<FileStorageDemoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Verifica se File Storage è disponibile (non su web)
+    if (kIsWeb) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('File Storage Demo'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 64, color: Colors.orange),
+                const SizedBox(height: 24),
+                Text(
+                  'File Storage not available on Web',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'path_provider requires native file system access.\n\nPlease run the app on:',
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    Chip(label: Text('Windows'), avatar: Icon(Icons.desktop_windows, size: 18)),
+                    Chip(label: Text('macOS'), avatar: Icon(Icons.desktop_mac, size: 18)),
+                    Chip(label: Text('Linux'), avatar: Icon(Icons.computer, size: 18)),
+                    Chip(label: Text('Android'), avatar: Icon(Icons.android, size: 18)),
+                    Chip(label: Text('iOS'), avatar: Icon(Icons.phone_iphone, size: 18)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'On web, use SharedPreferences or Hive instead.',
+                  style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey[600]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Back to Menu'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('File Storage Demo'),
