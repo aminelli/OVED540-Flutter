@@ -1,5 +1,5 @@
 import 'package:hydrated_bloc/hydrated_bloc.dart';
-import 'package:webapp_flutter_bloc_api_demo/repositories/customer_repository.dart';
+import 'package:demo_client_api/repositories/customer_repository.dart';
 import '../models/customer_model.dart';
 import 'package:equatable/equatable.dart';
 
